@@ -83,88 +83,101 @@ struct ReceiptDetailView: View {
     // MARK: - Pending state
 
     private var pendingBanner: some View {
-        VStack(spacing: 16) {
-            HStack(spacing: 10) {
+        VStack(spacing: 0) {
+            // Status row
+            HStack(spacing: 12) {
                 Image(systemName: "clock.arrow.2.circlepath")
                     .font(.title3)
                     .foregroundStyle(.orange)
 
-                VStack(alignment: .leading, spacing: 3) {
+                VStack(alignment: .leading, spacing: 2) {
                     Text("Awaiting Processing")
-                        .font(.headline)
-                    Text("This receipt will be processed once the Cashew API is connected.")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                    Text("Will be extracted once the Cashew API is connected.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding()
-            .background(Color.orange.opacity(0.1))
-            .clipShape(.rect(cornerRadius: 14))
-
-            HStack {
-                Label(
-                    receipt.receiptDate.formatted(date: .long, time: .omitted),
-                    systemImage: "calendar"
-                )
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-
                 Spacer()
-
-                Label(
-                    receipt.scannedAt.formatted(date: .abbreviated, time: .shortened),
-                    systemImage: "clock"
-                )
-                .font(.caption)
-                .foregroundStyle(.tertiary)
             }
+            .padding()
+
+            Divider()
+                .padding(.horizontal)
+
+            // Date row
+            HStack(spacing: 6) {
+                Image(systemName: "calendar")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text(receipt.receiptDate.formatted(date: .long, time: .omitted))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text(receipt.scannedAt.formatted(date: .abbreviated, time: .shortened))
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
+            .padding()
         }
+        .background(Color(.secondarySystemBackground))
+        .clipShape(.rect(cornerRadius: 16))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.orange.opacity(0.3), lineWidth: 1)
+        )
     }
 
     // MARK: - Complete state
 
     private var completeContent: some View {
-        VStack(alignment: .leading, spacing: 20) {
-
-            // Store header
-            VStack(alignment: .leading, spacing: 4) {
+        VStack(spacing: 0) {
+            // Store name + date
+            VStack(alignment: .leading, spacing: 10) {
                 Text(receipt.storeName.isEmpty ? "Unknown Store" : receipt.storeName)
-                    .font(.title2)
+                    .font(.title3)
                     .fontWeight(.bold)
 
-                HStack(spacing: 12) {
-                    Label(
-                        receipt.receiptDate.formatted(date: .long, time: .omitted),
-                        systemImage: "calendar"
-                    )
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                HStack(spacing: 6) {
+                    Image(systemName: "calendar")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text(receipt.receiptDate.formatted(date: .long, time: .omitted))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
 
-                    Label(
-                        receipt.scannedAt.formatted(date: .abbreviated, time: .shortened),
-                        systemImage: "clock"
-                    )
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
+                    Spacer()
+
+                    Text(receipt.scannedAt.formatted(date: .abbreviated, time: .shortened))
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
                 }
             }
+            .padding()
 
-            // Total card
-            HStack {
-                Text("Total")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+            Divider()
+                .padding(.horizontal)
+
+            // Total
+            HStack(alignment: .center) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Total paid")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text(receipt.formattedTotal)
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .foregroundStyle(.green)
+                }
                 Spacer()
-                Text(receipt.formattedTotal)
-                    .font(.title2)
-                    .fontWeight(.bold)
-                    .foregroundStyle(.green)
+                Image(systemName: "checkmark.seal.fill")
+                    .font(.system(size: 32))
+                    .foregroundStyle(.green.opacity(0.2))
             }
             .padding()
-            .background(Color(.secondarySystemBackground))
-            .clipShape(.rect(cornerRadius: 14))
         }
+        .background(Color(.secondarySystemBackground))
+        .clipShape(.rect(cornerRadius: 16))
     }
 }
 
