@@ -83,63 +83,30 @@ struct ReceiptDetailView: View {
     // MARK: - Pending state
 
     private var pendingBanner: some View {
-        VStack(spacing: 0) {
-            // Status row
-            HStack(spacing: 12) {
-                Image(systemName: "clock.arrow.2.circlepath")
-                    .font(.title3)
-                    .foregroundStyle(.orange)
+        VStack(alignment: .leading, spacing: 8) {
+            VStack(spacing: 0) {
+                // Status row
+                HStack(spacing: 12) {
+                    Image(systemName: "clock.arrow.2.circlepath")
+                        .font(.title3)
+                        .foregroundStyle(.orange)
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Awaiting Processing")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                    Text("Will be extracted once the Cashew API is connected.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Awaiting Processing")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                        Text("Will be extracted once the Cashew API is connected.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
                 }
-                Spacer()
-            }
-            .padding()
+                .padding()
 
-            Divider()
-                .padding(.horizontal)
+                Divider()
+                    .padding(.horizontal)
 
-            // Date row
-            HStack(spacing: 6) {
-                Image(systemName: "calendar")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Text(receipt.receiptDate.formatted(date: .long, time: .omitted))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-
-                Spacer()
-
-                Text("Scanned \(receipt.scannedAt.formatted(date: .abbreviated, time: .shortened))")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-            }
-            .padding()
-        }
-        .background(Color(.secondarySystemBackground))
-        .clipShape(.rect(cornerRadius: 16))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.orange.opacity(0.3), lineWidth: 1)
-        )
-    }
-
-    // MARK: - Complete state
-
-    private var completeContent: some View {
-        VStack(spacing: 0) {
-            // Store name + date
-            VStack(alignment: .leading, spacing: 10) {
-                Text(receipt.storeName.isEmpty ? "Unknown Store" : receipt.storeName)
-                    .font(.title3)
-                    .fontWeight(.bold)
-
+                // Receipt date
                 HStack(spacing: 6) {
                     Image(systemName: "calendar")
                         .font(.caption)
@@ -147,39 +114,81 @@ struct ReceiptDetailView: View {
                     Text(receipt.receiptDate.formatted(date: .long, time: .omitted))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
-
-                    Spacer()
-
-                    Text("Scanned \(receipt.scannedAt.formatted(date: .abbreviated, time: .shortened))")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
                 }
+                .padding()
             }
-            .padding()
+            .background(Color(.secondarySystemBackground))
+            .clipShape(.rect(cornerRadius: 16))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(Color.orange.opacity(0.3), lineWidth: 1)
+            )
 
-            Divider()
-                .padding(.horizontal)
-
-            // Total
-            HStack(alignment: .center) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Total paid")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Text(receipt.formattedTotal)
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .foregroundStyle(.green)
-                }
-                Spacer()
-                Image(systemName: "checkmark.seal.fill")
-                    .font(.system(size: 32))
-                    .foregroundStyle(.green.opacity(0.2))
-            }
-            .padding()
+            scannedAtChip
         }
-        .background(Color(.secondarySystemBackground))
-        .clipShape(.rect(cornerRadius: 16))
+    }
+
+    // MARK: - Complete state
+
+    private var completeContent: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // Main info card
+            VStack(spacing: 0) {
+                // Store name + date
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(receipt.storeName.isEmpty ? "Unknown Store" : receipt.storeName)
+                        .font(.title3)
+                        .fontWeight(.bold)
+
+                    HStack(spacing: 6) {
+                        Image(systemName: "calendar")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text(receipt.receiptDate.formatted(date: .long, time: .omitted))
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding()
+
+                Divider()
+                    .padding(.horizontal)
+
+                // Total
+                HStack(alignment: .center) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Total paid")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text(receipt.formattedTotal)
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .foregroundStyle(.green)
+                    }
+                    Spacer()
+                    Image(systemName: "checkmark.seal.fill")
+                        .font(.system(size: 32))
+                        .foregroundStyle(.green.opacity(0.2))
+                }
+                .padding()
+            }
+            .background(Color(.secondarySystemBackground))
+            .clipShape(.rect(cornerRadius: 16))
+
+            // Scan timestamp — clearly labelled as app metadata
+            scannedAtChip
+        }
+    }
+
+    private var scannedAtChip: some View {
+        HStack(spacing: 5) {
+            Image(systemName: "arrow.down.to.line")
+                .font(.caption2)
+            Text("Added to Cashew · \(receipt.scannedAt.formatted(date: .abbreviated, time: .shortened))")
+                .font(.caption2)
+        }
+        .foregroundStyle(.tertiary)
+        .padding(.leading, 4)
     }
 }
 
