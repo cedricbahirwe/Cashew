@@ -22,7 +22,7 @@ struct ReceiptScannerView: View {
     enum Stage {
         case scanning
         case processing(String)
-        /// Apple Intelligence succeeded — user reviews and edits before saving.
+        /// Apple Intelligence succeeded — user reviews before saving.
         case reviewing(UIImage, ParsedReceipt)
         /// Non-AI device — image captured, waiting for API processing.
         case confirming(UIImage, Date)
@@ -51,12 +51,11 @@ struct ReceiptScannerView: View {
 
         // ── Review (AI path) ─────────────────────────────────────────────────
         case .reviewing(let image, let parsed):
-            ReceiptReviewView(image: image, parsed: parsed) { storeName, date, items, total, currency in
+            ReceiptReviewView(image: image, parsed: parsed) { storeName, date, total, currency in
                 saveReceipt(
                     image: image,
                     storeName: storeName,
                     date: date,
-                    items: items,
                     total: total,
                     currency: currency,
                     rawText: parsed.rawText,
@@ -110,18 +109,9 @@ struct ReceiptScannerView: View {
                 }
 
                 if let extracted = await FoundationModelService.extractReceiptData(from: rawText) {
-                    let parsedItems = extracted.items.map {
-                        ParsedItem(
-                            name:       $0.name,
-                            quantity:   $0.quantity,
-                            unitPrice:  $0.unitPrice,
-                            totalPrice: $0.totalPrice
-                        )
-                    }
                     let parsed = ParsedReceipt(
                         storeName: extracted.storeName,
                         date:      qrDate ?? ReceiptParser.extractDate(fromRawText: rawText),
-                        items:     parsedItems,
                         total:     extracted.totalAmount,
                         currency:  extracted.currency,
                         rawText:   rawText
@@ -146,20 +136,11 @@ struct ReceiptScannerView: View {
         image: UIImage,
         storeName: String,
         date: Date,
-        items: [ParsedItem],
         total: Double,
         currency: String,
         rawText: String,
         status: ReceiptStatus
     ) {
-        let receiptItems = items.map {
-            ReceiptItem(
-                name:       $0.name,
-                quantity:   $0.quantity,
-                unitPrice:  $0.unitPrice,
-                totalPrice: $0.totalPrice
-            )
-        }
         modelContext.insert(Receipt(
             storeName:   storeName,
             receiptDate: date,
@@ -167,7 +148,6 @@ struct ReceiptScannerView: View {
             currency:    currency,
             imageData:   image.jpegData(compressionQuality: 0.75),
             rawText:     rawText,
-            items:       receiptItems,
             status:      status
         ))
         dismiss()
@@ -181,7 +161,6 @@ struct ReceiptScannerView: View {
             currency:    "RWF",
             imageData:   image.jpegData(compressionQuality: 0.75),
             rawText:     "",
-            items:       [],
             status:      .pending
         ))
         dismiss()
@@ -335,12 +314,11 @@ private struct SimulatorPickerView: View {
 private struct ReceiptReviewView: View {
     let image: UIImage
     let rawText: String
-    let onSave: (String, Date, [ParsedItem], Double, String) -> Void
+    let onSave: (String, Date, Double, String) -> Void
     let onCancel: () -> Void
 
     @State private var storeName: String
     @State private var receiptDate: Date
-    @State private var items: [ParsedItem]
     @State private var total: Double
     @State private var currency: String
     @State private var showRawText = false
@@ -348,7 +326,7 @@ private struct ReceiptReviewView: View {
     init(
         image: UIImage,
         parsed: ParsedReceipt,
-        onSave: @escaping (String, Date, [ParsedItem], Double, String) -> Void,
+        onSave: @escaping (String, Date, Double, String) -> Void,
         onCancel: @escaping () -> Void
     ) {
         self.image    = image
@@ -357,7 +335,6 @@ private struct ReceiptReviewView: View {
         self.onCancel = onCancel
         _storeName    = State(initialValue: parsed.storeName)
         _receiptDate  = State(initialValue: parsed.date)
-        _items        = State(initialValue: parsed.items)
         _total        = State(initialValue: parsed.total)
         _currency     = State(initialValue: parsed.currency)
     }
@@ -408,41 +385,6 @@ private struct ReceiptReviewView: View {
                         Text("EUR – Euro").tag("EUR")
                     }
                     .pickerStyle(.menu)
-                }
-
-                // Line items
-                Section {
-                    if items.isEmpty {
-                        Text("No items detected")
-                            .foregroundStyle(.secondary)
-                            .font(.subheadline)
-                    } else {
-                        ForEach(items) { item in
-                            HStack {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(item.name)
-                                        .font(.subheadline)
-                                        .lineLimit(2)
-                                    if item.quantity > 1 {
-                                        Text("Qty: \(item.quantity)")
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                }
-                                Spacer()
-                                Text("\(currency) \(formatAmount(item.totalPrice))")
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        .onDelete { offsets in items.remove(atOffsets: offsets) }
-                    }
-                } header: {
-                    HStack {
-                        Text("Items (\(items.count))")
-                        Spacer()
-                        EditButton().font(.caption)
-                    }
                 }
 
                 // Total
@@ -509,7 +451,7 @@ private struct ReceiptReviewView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
-                        onSave(storeName, receiptDate, items, total, currency)
+                        onSave(storeName, receiptDate, total, currency)
                     }
                     .fontWeight(.semibold)
                     .disabled(storeName.trimmingCharacters(in: .whitespaces).isEmpty)
@@ -518,13 +460,6 @@ private struct ReceiptReviewView: View {
         }
     }
 
-    private func formatAmount(_ value: Double) -> String {
-        let f = NumberFormatter()
-        f.numberStyle = .decimal
-        f.groupingSeparator = ","
-        f.maximumFractionDigits = 0
-        return f.string(from: NSNumber(value: value)) ?? "\(Int(value))"
-    }
 }
 
 // MARK: - Processing overlay

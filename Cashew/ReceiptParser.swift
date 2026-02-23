@@ -12,18 +12,9 @@ import Foundation
 struct ParsedReceipt {
     var storeName: String
     var date: Date
-    var items: [ParsedItem]   // Not extracted yet — user fills in manually
     var total: Double
     var currency: String
     var rawText: String       // Full OCR output, shown in review for debugging
-}
-
-struct ParsedItem: Identifiable {
-    let id = UUID()
-    var name: String
-    var quantity: Int
-    var unitPrice: Double
-    var totalPrice: Double
 }
 
 // MARK: - RRA QR code data
@@ -75,7 +66,6 @@ enum ReceiptParser {
         return ParsedReceipt(
             storeName: extractStoreName(from: lines),
             date:      extractDate(from: lines),
-            items:     [],                          // items: deferred
             total:     extractTotal(from: lines),
             currency:  detectCurrency(in: rawText),
             rawText:   rawText

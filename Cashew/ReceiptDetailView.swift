@@ -108,50 +108,11 @@ struct ReceiptDetailView: View {
                 }
             }
 
-            // Line items
-            if !receipt.items.isEmpty {
-                VStack(alignment: .leading, spacing: 0) {
-                    Text("Items")
-                        .font(.headline)
-                        .padding(.bottom, 10)
-
-                    ForEach(receipt.items) { item in
-                        VStack(spacing: 0) {
-                            HStack(alignment: .top) {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(item.name)
-                                        .font(.subheadline)
-                                    if item.quantity > 1 {
-                                        Text("Qty: \(item.quantity)")
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                }
-                                Spacer()
-                                Text(formatAmount(item.totalPrice))
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                            }
-                            .padding(.vertical, 10)
-                            Divider()
-                        }
-                    }
-                }
-                .padding()
-                .background(Color(.secondarySystemBackground))
-                .clipShape(RoundedRectangle(cornerRadius: 14))
-            }
-
             // Total card
             HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Total")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                    Text("\(receipt.items.count) item\(receipt.items.count == 1 ? "" : "s")")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                }
+                Text("Total")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
                 Spacer()
                 Text(receipt.formattedTotal)
                     .font(.title2)
@@ -164,11 +125,4 @@ struct ReceiptDetailView: View {
         }
     }
 
-    private func formatAmount(_ value: Double) -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        formatter.groupingSeparator = ","
-        formatter.maximumFractionDigits = 0
-        return "\(receipt.currency) \(formatter.string(from: NSNumber(value: value)) ?? "\(Int(value))")"
-    }
 }

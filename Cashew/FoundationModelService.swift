@@ -14,40 +14,7 @@
 import Foundation
 import FoundationModels
 
-// MARK: - Structured output types
-
-/// A single line item extracted from a receipt.
-@available(iOS 18.1, *)
-@Generable
-struct ExtractedItem {
-    @Guide(description: """
-        The product name as printed on the receipt.
-        Clean up obvious OCR noise but keep the original wording.
-        Examples: "Milk 1L", "Bread White 600g", "Coca Cola 500ml".
-        """)
-    var name: String
-
-    @Guide(description: """
-        Quantity purchased for this line item.
-        Usually shown as a number before or after the product name, or on a separate line.
-        Default to 1 if not explicitly shown.
-        """)
-    var quantity: Int
-
-    @Guide(description: """
-        Price per single unit of the product.
-        Often labeled "Unit Price" or shown in a second column.
-        Return 0 if not shown.
-        """)
-    var unitPrice: Double
-
-    @Guide(description: """
-        Total price for this line item (quantity × unit price).
-        This is the rightmost price column.
-        Strip commas and spaces (e.g. "1,500.00" → 1500.0).
-        """)
-    var totalPrice: Double
-}
+// MARK: - Structured output type
 
 /// All structured data we extract from a receipt in a single LLM call.
 @available(iOS 18.1, *)
@@ -86,17 +53,6 @@ struct ExtractedReceiptData {
         Default to "RWF" when no currency indicator is found (most receipts are Rwandan).
         """)
     var currency: String
-
-    /// All line items purchased on this receipt.
-    @Guide(description: """
-        Every product line item on the receipt.
-        Important: OCR from POS receipts often reads the entire left column (item names) then
-        the entire right column (prices), so names and prices may be many lines apart.
-        Pair them intelligently based on position and context.
-        Exclude header, subtotal, tax, and footer lines.
-        Return an empty array if no items can be reliably identified.
-        """)
-    var items: [ExtractedItem]
 }
 
 // MARK: - Service
@@ -162,7 +118,6 @@ enum FoundationModelService {
         Notes on this OCR output:
         • Numbers may have stray spaces near the decimal (e.g. "5,400. 00" means 5400.00).
         • Lines are separated by newlines; columns are not always aligned.
-        • POS receipts often put all item names first, then all prices — pair them by order.
         • The receipt may start with POS system header garbage before the actual store name.
         • Ignore lines like "TOTAL TAX", "TOTAL B-18%", "TOTAL A-EX" — those are subtotals.
         • Most receipts are Rwandan; default to RWF if no currency code is found.

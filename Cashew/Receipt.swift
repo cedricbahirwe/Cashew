@@ -33,7 +33,6 @@ final class Receipt {
     var imageData: Data?
     var rawText: String
     var statusRaw: String                               // stores ReceiptStatus.rawValue
-    @Relationship(deleteRule: .cascade) var items: [ReceiptItem]
 
     var status: ReceiptStatus {
         get { ReceiptStatus(rawValue: statusRaw) ?? .complete }
@@ -49,7 +48,6 @@ final class Receipt {
         currency: String = "RWF",
         imageData: Data? = nil,
         rawText: String = "",
-        items: [ReceiptItem] = [],
         status: ReceiptStatus = .complete
     ) {
         self.storeName    = storeName
@@ -60,7 +58,6 @@ final class Receipt {
         self.imageData    = imageData
         self.rawText      = rawText
         self.statusRaw    = status.rawValue
-        self.items        = items
     }
 
     var formattedTotal: String {

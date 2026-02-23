@@ -13,7 +13,6 @@ struct CashewApp: App {
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             Receipt.self,
-            ReceiptItem.self,
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 

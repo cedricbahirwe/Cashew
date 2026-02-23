@@ -38,11 +38,6 @@ struct ReceiptCard: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
-                if !receipt.isPending {
-                    Text("\(receipt.items.count) item\(receipt.items.count == 1 ? "" : "s")")
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                }
             }
 
             Spacer()
