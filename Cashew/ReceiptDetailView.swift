@@ -45,25 +45,35 @@ struct ReceiptDetailView: View {
         Button {
             showFullImage = true
         } label: {
-            ZStack(alignment: .bottomTrailing) {
+            ZStack(alignment: .bottom) {
                 Image(uiImage: image)
                     .resizable()
                     .scaledToFill()
                     .frame(maxWidth: .infinity)
                     .frame(height: 220)
                     .clipped()
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
+
+                // Dark gradient scrim — ensures the badge is readable over any image colour
+                LinearGradient(
+                    colors: [.clear, .black.opacity(0.55)],
+                    startPoint: .center,
+                    endPoint: .bottom
+                )
 
                 // Expand hint badge
-                Label("View", systemImage: "arrow.up.left.and.arrow.down.right")
-                    .font(.caption2)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 5)
-                    .background(.ultraThinMaterial, in: Capsule())
-                    .padding(10)
+                HStack(spacing: 4) {
+                    Image(systemName: "arrow.up.left.and.arrow.down.right")
+                    Text("View full receipt")
+                }
+                .font(.caption)
+                .fontWeight(.semibold)
+                .foregroundStyle(.white)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(Color.black.opacity(0.45), in: Capsule())
+                .padding(.bottom, 12)
             }
+            .clipShape(RoundedRectangle(cornerRadius: 14))
         }
         .buttonStyle(.plain)
         .shadow(color: .black.opacity(0.12), radius: 8, x: 0, y: 4)
@@ -213,15 +223,16 @@ private struct FullImageViewer: View {
                 }
                 .animation(.interactiveSpring, value: scale)
 
-            // Close button
+            // Close button — solid white circle with dark icon, visible on any background
             Button {
                 dismiss()
             } label: {
                 Image(systemName: "xmark")
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(.white)
-                    .padding(10)
-                    .background(.ultraThinMaterial, in: Circle())
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(.black)
+                    .frame(width: 32, height: 32)
+                    .background(Color.white, in: Circle())
+                    .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 2)
             }
             .padding()
         }
