@@ -45,35 +45,36 @@ struct ReceiptDetailView: View {
         Button {
             showFullImage = true
         } label: {
-            ZStack(alignment: .bottom) {
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 220)
-                    .clipped()
-
-                // Dark gradient scrim — ensures the badge is readable over any image colour
-                LinearGradient(
-                    colors: [.clear, .black.opacity(0.55)],
-                    startPoint: .center,
-                    endPoint: .bottom
-                )
-
-                // Expand hint badge
-                HStack(spacing: 4) {
-                    Image(systemName: "arrow.up.left.and.arrow.down.right")
-                    Text("View full receipt")
+            Image(uiImage: image)
+                .resizable()
+                .scaledToFill()
+                .frame(maxWidth: .infinity)
+                .frame(height: 220)
+                .clipped()
+                // Gradient scrim over the bottom quarter only
+                .overlay(alignment: .bottom) {
+                    LinearGradient(
+                        colors: [.clear, .black.opacity(0.5)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .frame(height: 80)
                 }
-                .font(.caption)
-                .fontWeight(.semibold)
-                .foregroundStyle(.white)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(Color.black.opacity(0.45), in: Capsule())
-                .padding(.bottom, 12)
-            }
-            .clipShape(RoundedRectangle(cornerRadius: 14))
+                // Badge pinned to bottom-trailing corner
+                .overlay(alignment: .bottomTrailing) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.up.left.and.arrow.down.right")
+                        Text("View full receipt")
+                    }
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(Color.black.opacity(0.5), in: Capsule())
+                    .padding(10)
+                }
+                .clipShape(.rect(cornerRadius: 14))
         }
         .buttonStyle(.plain)
         .shadow(color: .black.opacity(0.12), radius: 8, x: 0, y: 4)
@@ -99,7 +100,7 @@ struct ReceiptDetailView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding()
             .background(Color.orange.opacity(0.1))
-            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .clipShape(.rect(cornerRadius: 14))
 
             HStack {
                 Label(
@@ -162,7 +163,7 @@ struct ReceiptDetailView: View {
             }
             .padding()
             .background(Color(.secondarySystemBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .clipShape(.rect(cornerRadius: 14))
         }
     }
 }
@@ -179,7 +180,7 @@ private struct FullImageViewer: View {
     @State private var lastOffset: CGSize = .zero
 
     var body: some View {
-        ZStack(alignment: .topTrailing) {
+        ZStack {
             Color.black.ignoresSafeArea()
 
             Image(uiImage: image)
@@ -223,15 +224,16 @@ private struct FullImageViewer: View {
                 }
                 .animation(.interactiveSpring, value: scale)
 
-            // Close button — solid white circle with dark icon, visible on any background
+        }
+        .overlay(alignment: .topTrailing) {
             Button {
                 dismiss()
             } label: {
                 Image(systemName: "xmark")
-                    .font(.system(size: 13, weight: .bold))
+                    .font(.system(size: 20, weight: .bold))
                     .foregroundStyle(.black)
-                    .frame(width: 32, height: 32)
-                    .background(Color.white, in: Circle())
+                    .frame(width: 45, height: 45)
+                    .background(.white, in: .circle)
                     .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 2)
             }
             .padding()
