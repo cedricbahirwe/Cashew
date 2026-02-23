@@ -400,7 +400,8 @@
 				DEVELOPMENT_TEAM = 6V9B6LUW22;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_LSApplicationCategoryType = "Cashew needs camera access to scan your receipts";
+				INFOPLIST_KEY_CFBundleDisplayName = Cashew;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.finance";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Cashew needs camera access to scan your receipts";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Cashew uses your photo library so you can select receipt images when the camera is unavailable.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -435,7 +436,8 @@
 				DEVELOPMENT_TEAM = 6V9B6LUW22;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_LSApplicationCategoryType = "Cashew needs camera access to scan your receipts";
+				INFOPLIST_KEY_CFBundleDisplayName = Cashew;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.finance";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Cashew needs camera access to scan your receipts";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Cashew uses your photo library so you can select receipt images when the camera is unavailable.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
