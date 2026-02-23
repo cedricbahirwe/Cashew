@@ -113,6 +113,12 @@ struct ReceiptDetailView: View {
                 Text(receipt.receiptDate.formatted(date: .long, time: .omitted))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+
+                Spacer()
+
+                Text("Scanned \(receipt.scannedAt.formatted(date: .abbreviated, time: .shortened))")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
             }
             .padding()
         }
@@ -141,6 +147,12 @@ struct ReceiptDetailView: View {
                     Text(receipt.receiptDate.formatted(date: .long, time: .omitted))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
+
+                    Spacer()
+
+                    Text("Scanned \(receipt.scannedAt.formatted(date: .abbreviated, time: .shortened))")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
                 }
             }
             .padding()
