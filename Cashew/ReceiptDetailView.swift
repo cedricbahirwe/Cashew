@@ -10,48 +10,78 @@ import SwiftUI
 struct ReceiptDetailView: View {
     let receipt: Receipt
 
+    @Namespace private var imageNamespace
     @State private var showFullImage = false
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
+        ZStack {
+            // ── Main scroll content ──────────────────────────────────────────
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
 
-                // Receipt image — constrained preview, tap to expand
-                if let data = receipt.imageData, let uiImage = UIImage(data: data) {
-                    receiptImagePreview(uiImage)
+                    if let data = receipt.imageData, let uiImage = UIImage(data: data) {
+                        receiptImagePreview(uiImage)
+                    }
+
+                    if receipt.isPending {
+                        pendingBanner
+                    } else {
+                        completeContent
+                    }
                 }
-
-                if receipt.isPending {
-                    pendingBanner
-                } else {
-                    completeContent
+                .padding()
+            }
+            // Dim the rest of the page while the image is expanded
+            .overlay {
+                if showFullImage {
+                    Color.black.opacity(0.01)   // tiny opacity keeps it hittable for dismiss
+                        .ignoresSafeArea()
+                        .onTapGesture { collapseImage() }
                 }
             }
-            .padding()
+
+            // ── Full-screen overlay (same hierarchy — required for matchedGeometryEffect) ──
+            if showFullImage, let data = receipt.imageData, let uiImage = UIImage(data: data) {
+                FullImageViewer(
+                    image: uiImage,
+                    namespace: imageNamespace,
+                    onDismiss: collapseImage
+                )
+                .ignoresSafeArea()
+                .zIndex(1)
+            }
         }
         .navigationTitle(receipt.isPending ? "Pending Receipt" : "Receipt")
         .navigationBarTitleDisplayMode(.inline)
         .background(Color(.systemGroupedBackground))
-        .fullScreenCover(isPresented: $showFullImage) {
-            if let data = receipt.imageData, let uiImage = UIImage(data: data) {
-                FullImageViewer(image: uiImage)
-            }
+    }
+
+    // MARK: - Actions
+
+    private func expandImage() {
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.78)) {
+            showFullImage = true
+        }
+    }
+
+    private func collapseImage() {
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.78)) {
+            showFullImage = false
         }
     }
 
     // MARK: - Image preview
 
     private func receiptImagePreview(_ image: UIImage) -> some View {
-        Button {
-            showFullImage = true
-        } label: {
+        Button(action: expandImage) {
             Image(uiImage: image)
                 .resizable()
                 .scaledToFill()
                 .frame(maxWidth: .infinity)
                 .frame(height: 220)
                 .clipped()
-                // Gradient scrim over the bottom quarter only
+                // matchedGeometryEffect tags this as the "source" frame
+                .matchedGeometryEffect(id: "receiptImage", in: imageNamespace)
                 .overlay(alignment: .bottom) {
                     LinearGradient(
                         colors: [.clear, .black.opacity(0.5)],
@@ -60,7 +90,6 @@ struct ReceiptDetailView: View {
                     )
                     .frame(height: 80)
                 }
-                // Badge pinned to bottom-trailing corner
                 .overlay(alignment: .bottomTrailing) {
                     HStack(spacing: 4) {
                         Image(systemName: "arrow.up.left.and.arrow.down.right")
@@ -78,6 +107,8 @@ struct ReceiptDetailView: View {
         }
         .buttonStyle(.plain)
         .shadow(color: .black.opacity(0.12), radius: 8, x: 0, y: 4)
+        // Hide the source while expanded so only the hero image is visible
+        .opacity(showFullImage ? 0 : 1)
     }
 
     // MARK: - Pending state
@@ -85,7 +116,6 @@ struct ReceiptDetailView: View {
     private var pendingBanner: some View {
         VStack(alignment: .leading, spacing: 8) {
             VStack(spacing: 0) {
-                // Status row
                 HStack(spacing: 12) {
                     Image(systemName: "clock.arrow.2.circlepath")
                         .font(.title3)
@@ -103,10 +133,8 @@ struct ReceiptDetailView: View {
                 }
                 .padding()
 
-                Divider()
-                    .padding(.horizontal)
+                Divider().padding(.horizontal)
 
-                // Receipt date
                 HStack(spacing: 6) {
                     Image(systemName: "calendar")
                         .font(.caption)
@@ -132,9 +160,7 @@ struct ReceiptDetailView: View {
 
     private var completeContent: some View {
         VStack(alignment: .leading, spacing: 8) {
-            // Main info card
             VStack(spacing: 0) {
-                // Store name + date
                 VStack(alignment: .leading, spacing: 10) {
                     Text(receipt.storeName.isEmpty ? "Unknown Store" : receipt.storeName)
                         .font(.title3)
@@ -149,12 +175,11 @@ struct ReceiptDetailView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding()
 
-                Divider()
-                    .padding(.horizontal)
+                Divider().padding(.horizontal)
 
-                // Total
                 HStack(alignment: .center) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Total paid")
@@ -175,7 +200,6 @@ struct ReceiptDetailView: View {
             .background(Color(.secondarySystemBackground))
             .clipShape(.rect(cornerRadius: 16))
 
-            // Scan timestamp — clearly labelled as app metadata
             scannedAtChip
         }
     }
@@ -183,10 +207,9 @@ struct ReceiptDetailView: View {
     private var scannedAtChip: some View {
         HStack(spacing: 5) {
             Image(systemName: "arrow.down.to.line")
-                .font(.caption2)
-            Text("Added to Cashew · \(receipt.scannedAt.formatted(date: .abbreviated, time: .shortened))")
-                .font(.caption2)
+            Text("Added: \(receipt.scannedAt.formatted(date: .abbreviated, time: .shortened))")
         }
+        .font(.caption)
         .foregroundStyle(.tertiary)
         .padding(.leading, 4)
     }
@@ -196,25 +219,33 @@ struct ReceiptDetailView: View {
 
 private struct FullImageViewer: View {
     let image: UIImage
-    @Environment(\.dismiss) private var dismiss
+    let namespace: Namespace.ID
+    let onDismiss: () -> Void
 
     @State private var scale: CGFloat = 1.0
     @State private var lastScale: CGFloat = 1.0
     @State private var offset: CGSize = .zero
     @State private var lastOffset: CGSize = .zero
+    @State private var dragOffset: CGSize = .zero
 
     var body: some View {
-        ZStack {
+        ZStack(alignment: .topTrailing) {
             Color.black.ignoresSafeArea()
 
             Image(uiImage: image)
                 .resizable()
                 .scaledToFit()
+                // matchedGeometryEffect tags this as the "destination" frame
+                .matchedGeometryEffect(id: "receiptImage", in: namespace)
                 .scaleEffect(scale)
-                .offset(offset)
+                .offset(
+                    CGSize(
+                        width:  offset.width  + dragOffset.width,
+                        height: offset.height + dragOffset.height
+                    )
+                )
                 .gesture(
                     SimultaneousGesture(
-                        // Pinch to zoom
                         MagnifyGesture()
                             .onChanged { value in
                                 let delta = value.magnification / lastScale
@@ -223,44 +254,60 @@ private struct FullImageViewer: View {
                             }
                             .onEnded { _ in
                                 lastScale = 1.0
-                                if scale < 1 { withAnimation(.spring) { scale = 1; offset = .zero } }
+                                if scale < 1 {
+                                    withAnimation(.spring) { scale = 1; offset = .zero }
+                                }
                             },
-                        // Pan when zoomed in
                         DragGesture()
                             .onChanged { value in
-                                guard scale > 1 else { return }
-                                offset = CGSize(
-                                    width:  lastOffset.width  + value.translation.width,
-                                    height: lastOffset.height + value.translation.height
-                                )
+                                if scale > 1 {
+                                    // Pan while zoomed
+                                    dragOffset = value.translation
+                                } else {
+                                    // Swipe down to dismiss
+                                    dragOffset = CGSize(width: 0, height: max(0, value.translation.height))
+                                }
                             }
-                            .onEnded { _ in
-                                lastOffset = offset
+                            .onEnded { value in
+                                if scale > 1 {
+                                    offset = CGSize(
+                                        width:  offset.width  + dragOffset.width,
+                                        height: offset.height + dragOffset.height
+                                    )
+                                    dragOffset = .zero
+                                    lastOffset = offset
+                                } else {
+                                    // Dismiss if dragged far enough down
+                                    if value.translation.height > 100 {
+                                        onDismiss()
+                                    } else {
+                                        withAnimation(.spring) { dragOffset = .zero }
+                                    }
+                                }
                             }
                     )
                 )
                 .onTapGesture(count: 2) {
                     withAnimation(.spring) {
-                        scale  = scale > 1 ? 1 : 2.5
-                        offset = .zero
+                        scale      = scale > 1 ? 1 : 2.5
+                        offset     = .zero
+                        dragOffset = .zero
                         lastOffset = .zero
                     }
                 }
-                .animation(.interactiveSpring, value: scale)
 
-        }
-        .overlay(alignment: .topTrailing) {
-            Button {
-                dismiss()
-            } label: {
+            // Close button
+            Button(action: onDismiss) {
                 Image(systemName: "xmark")
-                    .font(.system(size: 20, weight: .bold))
+                    .font(.system(size: 13, weight: .bold))
                     .foregroundStyle(.black)
-                    .frame(width: 45, height: 45)
-                    .background(.white, in: .circle)
+                    .frame(width: 32, height: 32)
+                    .background(Color.white, in: Circle())
                     .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 2)
             }
             .padding()
         }
+        // Shift the whole viewer down as the user swipes to give a rubber-band feel
+        .offset(y: dragOffset.height * 0.3)
     }
 }
