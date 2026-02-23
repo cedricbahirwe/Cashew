@@ -30,14 +30,6 @@ struct ReceiptDetailView: View {
                 Spacer()
             }
             .padding()
-            // Dim the rest of the page while the image is expanded
-            .overlay {
-                if showFullImage {
-                    Color.red//opacity keeps it hittable for dismiss
-//                        .ignoresSafeArea()
-                        .onTapGesture { collapseImage() }
-                }
-            }
 
             // ── Full-screen overlay (same hierarchy — required for matchedGeometryEffect) ──
             if showFullImage, let data = receipt.imageData, let uiImage = UIImage(data: data) {
@@ -46,12 +38,13 @@ struct ReceiptDetailView: View {
                     namespace: imageNamespace,
                     onDismiss: collapseImage
                 )
+                .background(Color(.systemGroupedBackground))
                 .zIndex(1)
             }
         }
         .navigationTitle(receipt.isPending ? "Pending Receipt" : "Receipt")
         .navigationBarTitleDisplayMode(.inline)
-//        .toolbarVisibility(showFullImage ? .hidden : .visible, for: .navigationBar)
+        .toolbarVisibility(showFullImage ? .hidden : .visible, for: .navigationBar)
         .background(Color(.systemGroupedBackground))
     }
 
@@ -190,9 +183,6 @@ struct ReceiptDetailView: View {
                             .foregroundStyle(.green)
                     }
                     Spacer()
-                    Image(systemName: "checkmark.seal.fill")
-                        .font(.system(size: 32))
-                        .foregroundStyle(.green.opacity(0.2))
                 }
                 .padding()
             }
