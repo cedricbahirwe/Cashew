@@ -17,7 +17,6 @@ import FoundationModels
 // MARK: - Structured output type
 
 /// All structured data we extract from a receipt in a single LLM call.
-@available(iOS 18.1, *)
 @Generable
 struct ExtractedReceiptData {
     /// Name of the store or business shown in the receipt header.
@@ -44,12 +43,8 @@ struct ExtractedReceiptData {
         The currency used on the receipt.
         Look for currency codes or symbols near amounts:
           RWF or FRW or Frw → "RWF"
-          KES or Ksh        → "KES"
-          UGX               → "UGX"
-          TZS               → "TZS"
           USD or $          → "USD"
           EUR or €          → "EUR"
-          GBP or £          → "GBP"
         Default to "RWF" when no currency indicator is found (most receipts are Rwandan).
         """)
     var currency: String
@@ -59,7 +54,6 @@ struct ExtractedReceiptData {
 
 /// Wrapper around `LanguageModelSession` for receipt data extraction.
 /// Only available on iOS 18.1+ devices with Apple Intelligence enabled.
-@available(iOS 18.1, *)
 enum FoundationModelService {
 
     // MARK: - Availability check

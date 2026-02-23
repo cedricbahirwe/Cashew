@@ -103,7 +103,7 @@ struct ReceiptScannerView: View {
                 .map    { $0.date }
 
             // ── Apple Intelligence path ──────────────────────────────────────
-            if #available(iOS 18.1, *), FoundationModelService.isAvailable {
+            if FoundationModelService.isAvailable {
                 await MainActor.run {
                     stage = .processing("Analysing with Apple Intelligence…")
                 }
@@ -184,7 +184,7 @@ private struct PendingConfirmView: View {
                 Image(uiImage: image)
                     .resizable()
                     .scaledToFit()
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                    .clipShape(.rect(cornerRadius: 14))
                     .shadow(color: .black.opacity(0.12), radius: 8, x: 0, y: 4)
                     .padding()
 
@@ -215,7 +215,7 @@ private struct PendingConfirmView: View {
                 .padding(24)
                 .frame(maxWidth: .infinity)
                 .background(Color(.secondarySystemBackground))
-                .clipShape(RoundedRectangle(cornerRadius: 20))
+                .clipShape(.rect(cornerRadius: 20))
                 .padding(.horizontal)
 
                 Spacer()
@@ -228,7 +228,7 @@ private struct PendingConfirmView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(.green)
-                .clipShape(RoundedRectangle(cornerRadius: 14))
+                .clipShape(.rect(cornerRadius: 14))
                 .padding()
             }
             .background(Color(.systemGroupedBackground))
@@ -350,7 +350,7 @@ private struct ReceiptReviewView: View {
                         .scaledToFit()
                         .frame(maxHeight: 220)
                         .frame(maxWidth: .infinity)
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                        .clipShape(.rect(cornerRadius: 10))
                         .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 12))
                 }
 
@@ -378,9 +378,6 @@ private struct ReceiptReviewView: View {
                 Section("Currency") {
                     Picker("Currency", selection: $currency) {
                         Text("RWF – Rwandan Franc").tag("RWF")
-                        Text("KES – Kenyan Shilling").tag("KES")
-                        Text("UGX – Ugandan Shilling").tag("UGX")
-                        Text("TZS – Tanzanian Shilling").tag("TZS")
                         Text("USD – US Dollar").tag("USD")
                         Text("EUR – Euro").tag("EUR")
                     }
@@ -425,7 +422,7 @@ private struct ReceiptReviewView: View {
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .padding(8)
                                 .background(Color(.systemGray6))
-                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                                .clipShape(.rect(cornerRadius: 8))
                         }
                         .frame(maxHeight: 260)
 

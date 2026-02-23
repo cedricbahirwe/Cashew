@@ -16,26 +16,25 @@ struct ReceiptDetailView: View {
     var body: some View {
         ZStack {
             // ── Main scroll content ──────────────────────────────────────────
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: 20) {
 
-                    if let data = receipt.imageData, let uiImage = UIImage(data: data) {
-                        receiptImagePreview(uiImage)
-                    }
-
-                    if receipt.isPending {
-                        pendingBanner
-                    } else {
-                        completeContent
-                    }
+                if let data = receipt.imageData, let uiImage = UIImage(data: data) {
+                    receiptImagePreview(uiImage)
                 }
-                .padding()
+
+                if receipt.isPending {
+                    pendingBanner
+                } else {
+                    completeContent
+                }
+                Spacer()
             }
+            .padding()
             // Dim the rest of the page while the image is expanded
             .overlay {
                 if showFullImage {
-                    Color.black.opacity(0.01)   // tiny opacity keeps it hittable for dismiss
-                        .ignoresSafeArea()
+                    Color.red.opacity(0.01)   // tiny opacity keeps it hittable for dismiss
+//                        .ignoresSafeArea()
                         .onTapGesture { collapseImage() }
                 }
             }
@@ -47,12 +46,13 @@ struct ReceiptDetailView: View {
                     namespace: imageNamespace,
                     onDismiss: collapseImage
                 )
-                .ignoresSafeArea()
+//                .ignoresSafeArea()
                 .zIndex(1)
             }
         }
         .navigationTitle(receipt.isPending ? "Pending Receipt" : "Receipt")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarVisibility(showFullImage ? .hidden : .visible, for: .navigationBar)
         .background(Color(.systemGroupedBackground))
     }
 
@@ -229,8 +229,8 @@ private struct FullImageViewer: View {
     @State private var dragOffset: CGSize = .zero
 
     var body: some View {
-        ZStack(alignment: .topTrailing) {
-            Color.black.ignoresSafeArea()
+        ZStack {
+            Color.green//.ignoresSafeArea()
 
             Image(uiImage: image)
                 .resizable()
@@ -295,19 +295,21 @@ private struct FullImageViewer: View {
                         lastOffset = .zero
                     }
                 }
-
+        }
+        .offset(y: dragOffset.height * 0.3)
+        .overlay(alignment: .topTrailing) {
             // Close button
             Button(action: onDismiss) {
                 Image(systemName: "xmark")
-                    .font(.system(size: 13, weight: .bold))
+                    .font(.system(size: 20, weight: .bold))
                     .foregroundStyle(.black)
-                    .frame(width: 32, height: 32)
+                    .frame(width: 45, height: 45)
                     .background(Color.white, in: Circle())
                     .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 2)
             }
             .padding()
+            .offset(y: (dragOffset.height * 0.3) > 0 ? dragOffset.height * 0.3 : 0)
+
         }
-        // Shift the whole viewer down as the user swipes to give a rubber-band feel
-        .offset(y: dragOffset.height * 0.3)
     }
 }

@@ -32,7 +32,6 @@ struct ReceiptCard: View {
                         .lineLimit(1)
                 }
 
-                // Date (left) + amount (right) share the secondary row
                 HStack {
                     Text(receipt.receiptDate, format: .dateTime.day().month(.abbreviated).year())
                         .foregroundStyle(.secondary)
