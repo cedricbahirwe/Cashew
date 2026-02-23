@@ -24,89 +24,144 @@ struct ReceiptDetailView: View {
                         .frame(maxWidth: .infinity)
                 }
 
-                // Store header
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(receipt.storeName)
-                        .font(.title2)
-                        .fontWeight(.bold)
-
-                    HStack(spacing: 12) {
-                        Label(
-                            receipt.receiptDate.formatted(date: .long, time: .omitted),
-                            systemImage: "calendar"
-                        )
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-
-                        Label(
-                            receipt.scannedAt.formatted(date: .abbreviated, time: .shortened),
-                            systemImage: "clock"
-                        )
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                    }
+                if receipt.isPending {
+                    pendingBanner
+                } else {
+                    completeContent
                 }
+            }
+            .padding()
+        }
+        .navigationTitle(receipt.isPending ? "Pending Receipt" : "Receipt")
+        .navigationBarTitleDisplayMode(.inline)
+        .background(Color(.systemGroupedBackground))
+    }
 
-                // Line items
-                if !receipt.items.isEmpty {
-                    VStack(alignment: .leading, spacing: 0) {
-                        Text("Items")
-                            .font(.headline)
-                            .padding(.bottom, 10)
+    // MARK: - Pending state
 
-                        ForEach(receipt.items) { item in
-                            VStack(spacing: 0) {
-                                HStack(alignment: .top) {
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(item.name)
-                                            .font(.subheadline)
-                                        if item.quantity > 1 {
-                                            Text("Qty: \(item.quantity)")
-                                                .font(.caption)
-                                                .foregroundStyle(.secondary)
-                                        }
-                                    }
-                                    Spacer()
-                                    Text(formatAmount(item.totalPrice))
+    private var pendingBanner: some View {
+        VStack(spacing: 16) {
+            HStack(spacing: 10) {
+                Image(systemName: "clock.arrow.2.circlepath")
+                    .font(.title3)
+                    .foregroundStyle(.orange)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Awaiting Processing")
+                        .font(.headline)
+                    Text("This receipt will be processed once the Cashew API is connected.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding()
+            .background(Color.orange.opacity(0.1))
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+
+            // Captured date from QR (may be set even on pending receipts)
+            HStack {
+                Label(
+                    receipt.receiptDate.formatted(date: .long, time: .omitted),
+                    systemImage: "calendar"
+                )
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+
+                Spacer()
+
+                Label(
+                    receipt.scannedAt.formatted(date: .abbreviated, time: .shortened),
+                    systemImage: "clock"
+                )
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+            }
+        }
+    }
+
+    // MARK: - Complete state
+
+    private var completeContent: some View {
+        VStack(alignment: .leading, spacing: 20) {
+
+            // Store header
+            VStack(alignment: .leading, spacing: 4) {
+                Text(receipt.storeName.isEmpty ? "Unknown Store" : receipt.storeName)
+                    .font(.title2)
+                    .fontWeight(.bold)
+
+                HStack(spacing: 12) {
+                    Label(
+                        receipt.receiptDate.formatted(date: .long, time: .omitted),
+                        systemImage: "calendar"
+                    )
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+
+                    Label(
+                        receipt.scannedAt.formatted(date: .abbreviated, time: .shortened),
+                        systemImage: "clock"
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                }
+            }
+
+            // Line items
+            if !receipt.items.isEmpty {
+                VStack(alignment: .leading, spacing: 0) {
+                    Text("Items")
+                        .font(.headline)
+                        .padding(.bottom, 10)
+
+                    ForEach(receipt.items) { item in
+                        VStack(spacing: 0) {
+                            HStack(alignment: .top) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(item.name)
                                         .font(.subheadline)
-                                        .foregroundStyle(.secondary)
+                                    if item.quantity > 1 {
+                                        Text("Qty: \(item.quantity)")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
                                 }
-                                .padding(.vertical, 10)
-
-                                Divider()
+                                Spacer()
+                                Text(formatAmount(item.totalPrice))
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
                             }
+                            .padding(.vertical, 10)
+                            Divider()
                         }
                     }
-                    .padding()
-                    .background(Color(.secondarySystemBackground))
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
-                }
-
-                // Total card
-                HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Total")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                        Text("\(receipt.items.count) item\(receipt.items.count == 1 ? "" : "s")")
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
-                    }
-                    Spacer()
-                    Text(receipt.formattedTotal)
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .foregroundStyle(.green)
                 }
                 .padding()
                 .background(Color(.secondarySystemBackground))
                 .clipShape(RoundedRectangle(cornerRadius: 14))
             }
+
+            // Total card
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Total")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    Text("\(receipt.items.count) item\(receipt.items.count == 1 ? "" : "s")")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+                Spacer()
+                Text(receipt.formattedTotal)
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .foregroundStyle(.green)
+            }
             .padding()
+            .background(Color(.secondarySystemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 14))
         }
-        .navigationTitle("Receipt")
-        .navigationBarTitleDisplayMode(.inline)
-        .background(Color(.systemGroupedBackground))
     }
 
     private func formatAmount(_ value: Double) -> String {

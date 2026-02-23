@@ -21,8 +21,11 @@ struct ReceiptScannerView: View {
 
     enum Stage {
         case scanning
-        case processing(String)       // message shown while working
+        case processing(String)
+        /// Apple Intelligence succeeded — user reviews and edits before saving.
         case reviewing(UIImage, ParsedReceipt)
+        /// Non-AI device — image captured, waiting for API processing.
+        case confirming(UIImage, Date)
         case error(String)
     }
 
@@ -39,19 +42,14 @@ struct ReceiptScannerView: View {
                 }
                 .ignoresSafeArea()
             } else {
-                // Simulator / devices without a camera → photo library picker
-                SimulatorPickerView { image in
-                    handleImage(image)
-                } onCancel: {
-                    dismiss()
-                }
+                SimulatorPickerView(onImageSelected: handleImage, onCancel: { dismiss() })
             }
 
         // ── Processing ───────────────────────────────────────────────────────
         case .processing(let message):
             ProcessingView(message: message)
 
-        // ── Review ───────────────────────────────────────────────────────────
+        // ── Review (AI path) ─────────────────────────────────────────────────
         case .reviewing(let image, let parsed):
             ReceiptReviewView(image: image, parsed: parsed) { storeName, date, items, total, currency in
                 saveReceipt(
@@ -61,8 +59,17 @@ struct ReceiptScannerView: View {
                     items: items,
                     total: total,
                     currency: currency,
-                    rawText: parsed.rawText
+                    rawText: parsed.rawText,
+                    status: .complete
                 )
+            } onCancel: {
+                dismiss()
+            }
+
+        // ── Confirm (pending path) ───────────────────────────────────────────
+        case .confirming(let image, let date):
+            PendingConfirmView(image: image, date: date) {
+                savePendingReceipt(image: image, date: date)
             } onCancel: {
                 dismiss()
             }
@@ -73,69 +80,67 @@ struct ReceiptScannerView: View {
         }
     }
 
-    // MARK: - Scan handlers
+    // MARK: - Scan entry points
 
-    /// Called by DocumentScannerWrapper after a successful camera scan.
     private func handleScan(_ scan: VNDocumentCameraScan) {
         handleImage(scan.imageOfPage(at: 0))
     }
 
-    /// Shared pipeline for both camera scans and photo-picker selections.
+    /// Shared pipeline for both camera and photo-picker images.
     private func handleImage(_ image: UIImage) {
         stage = .processing("Scanning receipt…")
 
         Task {
-            // Step 1 – OCR + QR detection in parallel
+            // Always run OCR + QR in parallel (fast, works on all devices).
             async let ocrTask = VisionService.recognizeText(from: image)
             async let qrTask  = VisionService.detectQRCode(from: image)
 
-            let rawText  = await ocrTask
+            let rawText   = await ocrTask
             let qrPayload = await qrTask
 
-            // Step 2 – Try Foundation Models (iOS 18.1+, Apple Intelligence)
-            //           Falls back to regex parser on older/incompatible devices.
-            var parsed = await extractReceiptData(from: rawText)
+            // Extract date from QR if available (machine-encoded, most reliable).
+            let qrDate = qrPayload
+                .flatMap { ReceiptParser.parseRRAQRCode($0) }
+                .map    { $0.date }
 
-            // Step 3 – QR date override: the RRA fiscal QR encodes the exact
-            //           transaction date/time, far more reliable than OCR.
-            if let payload = qrPayload,
-               let rraData = ReceiptParser.parseRRAQRCode(payload) {
-                parsed.date = rraData.date
+            // ── Apple Intelligence path ──────────────────────────────────────
+            if #available(iOS 18.1, *), FoundationModelService.isAvailable {
+                await MainActor.run {
+                    stage = .processing("Analysing with Apple Intelligence…")
+                }
+
+                if let extracted = await FoundationModelService.extractReceiptData(from: rawText) {
+                    let parsedItems = extracted.items.map {
+                        ParsedItem(
+                            name:       $0.name,
+                            quantity:   $0.quantity,
+                            unitPrice:  $0.unitPrice,
+                            totalPrice: $0.totalPrice
+                        )
+                    }
+                    let parsed = ParsedReceipt(
+                        storeName: extracted.storeName,
+                        date:      qrDate ?? ReceiptParser.extractDate(fromRawText: rawText),
+                        items:     parsedItems,
+                        total:     extracted.totalAmount,
+                        currency:  extracted.currency,
+                        rawText:   rawText
+                    )
+                    await MainActor.run { stage = .reviewing(image, parsed) }
+                    return
+                }
             }
 
+            // ── Pending path (no Apple Intelligence) ────────────────────────
+            // Image is captured; extraction will be done by the API later.
+            let fallbackDate = qrDate ?? ReceiptParser.extractDate(fromRawText: rawText)
             await MainActor.run {
-                stage = .reviewing(image, parsed)
+                stage = .confirming(image, fallbackDate)
             }
         }
     }
 
-    // MARK: - Extraction strategy
-
-    /// Tries Foundation Models first; falls back to the regex parser.
-    private func extractReceiptData(from rawText: String) async -> ParsedReceipt {
-
-        // Foundation Models: on-device LLM — iOS 18.1+, Apple Intelligence devices only.
-        if #available(iOS 18.1, *) {
-            await MainActor.run { stage = .processing("Analysing with Apple Intelligence…") }
-
-            if let extracted = await FoundationModelService.extractReceiptData(from: rawText) {
-                return ParsedReceipt(
-                    storeName: extracted.storeName,
-                    date:      ReceiptParser.extractDate(fromRawText: rawText),   // regex date (QR may override later)
-                    items:     [],
-                    total:     extracted.totalAmount,
-                    currency:  extracted.currency,
-                    rawText:   rawText
-                )
-            }
-        }
-
-        // Fallback: regex-based parser (always works, even on iPhone 12).
-        await MainActor.run { stage = .processing("Extracting receipt data…") }
-        return ReceiptParser.parse(rawText: rawText)
-    }
-
-    // MARK: - Save
+    // MARK: - Save helpers
 
     private func saveReceipt(
         image: UIImage,
@@ -144,9 +149,9 @@ struct ReceiptScannerView: View {
         items: [ParsedItem],
         total: Double,
         currency: String,
-        rawText: String = ""
+        rawText: String,
+        status: ReceiptStatus
     ) {
-        let imageData    = image.jpegData(compressionQuality: 0.75)
         let receiptItems = items.map {
             ReceiptItem(
                 name:       $0.name,
@@ -155,24 +160,112 @@ struct ReceiptScannerView: View {
                 totalPrice: $0.totalPrice
             )
         }
-        let receipt = Receipt(
-            storeName:    storeName,
-            receiptDate:  date,
-            totalAmount:  total,
-            currency:     currency,
-            imageData:    imageData,
-            rawText:      rawText,
-            items:        receiptItems
-        )
-        modelContext.insert(receipt)
+        modelContext.insert(Receipt(
+            storeName:   storeName,
+            receiptDate: date,
+            totalAmount: total,
+            currency:    currency,
+            imageData:   image.jpegData(compressionQuality: 0.75),
+            rawText:     rawText,
+            items:       receiptItems,
+            status:      status
+        ))
         dismiss()
+    }
+
+    private func savePendingReceipt(image: UIImage, date: Date) {
+        modelContext.insert(Receipt(
+            storeName:   "",
+            receiptDate: date,
+            totalAmount: 0,
+            currency:    "RWF",
+            imageData:   image.jpegData(compressionQuality: 0.75),
+            rawText:     "",
+            items:       [],
+            status:      .pending
+        ))
+        dismiss()
+    }
+}
+
+// MARK: - Pending confirm view
+
+/// Shown on non-Apple-Intelligence devices after the image is captured.
+/// The user just confirms the capture; extraction will happen via API later.
+private struct PendingConfirmView: View {
+    let image: UIImage
+    let date: Date
+    let onSave: () -> Void
+    let onCancel: () -> Void
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 0) {
+                // Receipt image preview
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFit()
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                    .shadow(color: .black.opacity(0.12), radius: 8, x: 0, y: 4)
+                    .padding()
+
+                // Status card
+                VStack(spacing: 16) {
+                    Image(systemName: "clock.arrow.2.circlepath")
+                        .font(.system(size: 40))
+                        .foregroundStyle(Color.orange.gradient)
+
+                    VStack(spacing: 6) {
+                        Text("Receipt captured")
+                            .font(.headline)
+                        Text("Data extraction requires Apple Intelligence.\nThis receipt will be processed once connected to the Cashew API.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+
+                    HStack {
+                        Label(
+                            date.formatted(date: .long, time: .omitted),
+                            systemImage: "calendar"
+                        )
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(24)
+                .frame(maxWidth: .infinity)
+                .background(Color(.secondarySystemBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 20))
+                .padding(.horizontal)
+
+                Spacer()
+
+                Button(action: onSave) {
+                    Text("Save Receipt")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.green)
+                .clipShape(RoundedRectangle(cornerRadius: 14))
+                .padding()
+            }
+            .background(Color(.systemGroupedBackground))
+            .navigationTitle("Confirm Capture")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel", action: onCancel)
+                }
+            }
+        }
     }
 }
 
 // MARK: - Simulator photo picker
 
-/// Shown when `VNDocumentCameraViewController` is unavailable (Simulator or iPad without camera).
-/// Lets the user pick a receipt photo from their library for testing.
 private struct SimulatorPickerView: View {
     let onImageSelected: (UIImage) -> Void
     let onCancel: () -> Void
@@ -237,7 +330,7 @@ private struct SimulatorPickerView: View {
     }
 }
 
-// MARK: - Review form
+// MARK: - Review form (Apple Intelligence path)
 
 private struct ReceiptReviewView: View {
     let image: UIImage
@@ -326,9 +419,16 @@ private struct ReceiptReviewView: View {
                     } else {
                         ForEach(items) { item in
                             HStack {
-                                Text(item.name)
-                                    .font(.subheadline)
-                                    .lineLimit(2)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(item.name)
+                                        .font(.subheadline)
+                                        .lineLimit(2)
+                                    if item.quantity > 1 {
+                                        Text("Qty: \(item.quantity)")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
                                 Spacer()
                                 Text("\(currency) \(formatAmount(item.totalPrice))")
                                     .font(.subheadline)
@@ -360,11 +460,9 @@ private struct ReceiptReviewView: View {
                     }
                 }
 
-                // Debug — raw OCR text
+                // Debug — raw OCR
                 Section {
-                    Button {
-                        showRawText.toggle()
-                    } label: {
+                    Button { showRawText.toggle() } label: {
                         HStack {
                             Label("Raw OCR Text", systemImage: "doc.plaintext")
                                 .font(.subheadline)
@@ -432,7 +530,7 @@ private struct ReceiptReviewView: View {
 // MARK: - Processing overlay
 
 private struct ProcessingView: View {
-    var message: String = "Extracting receipt data…"
+    var message: String
 
     var body: some View {
         VStack(spacing: 24) {
@@ -443,11 +541,13 @@ private struct ProcessingView: View {
             VStack(spacing: 6) {
                 Text(message)
                     .font(.headline)
+                    .multilineTextAlignment(.center)
                 Text("This only takes a moment")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
         }
+        .padding(32)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(.systemBackground))
         .animation(.easeInOut, value: message)

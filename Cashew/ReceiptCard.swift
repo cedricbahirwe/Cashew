@@ -12,31 +12,51 @@ struct ReceiptCard: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            // Thumbnail
             receiptThumbnail
 
-            // Info
             VStack(alignment: .leading, spacing: 4) {
-                Text(receipt.storeName)
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .lineLimit(1)
+                if receipt.isPending {
+                    // Pending: no store name yet
+                    HStack(spacing: 6) {
+                        Text("Pending")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(.orange)
+
+                        Image(systemName: "clock.arrow.2.circlepath")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    }
+                } else {
+                    Text(receipt.storeName.isEmpty ? "Unknown Store" : receipt.storeName)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .lineLimit(1)
+                }
 
                 Text(receipt.receiptDate, format: .dateTime.day().month(.wide).year())
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
-                Text("\(receipt.items.count) item\(receipt.items.count == 1 ? "" : "s")")
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
+                if !receipt.isPending {
+                    Text("\(receipt.items.count) item\(receipt.items.count == 1 ? "" : "s")")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
             }
 
             Spacer()
 
-            Text(receipt.formattedTotal)
-                .font(.subheadline)
-                .fontWeight(.semibold)
-                .foregroundStyle(Color.green)
+            if receipt.isPending {
+                Text("–")
+                    .font(.subheadline)
+                    .foregroundStyle(.tertiary)
+            } else {
+                Text(receipt.formattedTotal)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Color.green)
+            }
         }
         .padding(.vertical, 6)
     }
@@ -49,14 +69,25 @@ struct ReceiptCard: View {
                 .scaledToFill()
                 .frame(width: 52, height: 52)
                 .clipShape(RoundedRectangle(cornerRadius: 10))
+                .overlay(alignment: .bottomTrailing) {
+                    if receipt.isPending {
+                        Image(systemName: "clock.fill")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(.white)
+                            .padding(3)
+                            .background(Color.orange)
+                            .clipShape(Circle())
+                            .offset(x: 4, y: 4)
+                    }
+                }
         } else {
             RoundedRectangle(cornerRadius: 10)
                 .fill(Color(.systemGray5))
                 .frame(width: 52, height: 52)
                 .overlay {
-                    Image(systemName: "doc.text")
+                    Image(systemName: receipt.isPending ? "clock.arrow.2.circlepath" : "doc.text")
                         .font(.title3)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(receipt.isPending ? .orange : .secondary)
                 }
         }
     }

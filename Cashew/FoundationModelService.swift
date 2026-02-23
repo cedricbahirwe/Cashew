@@ -5,18 +5,51 @@
 //  Created by Cédric Bahirwe on 22/02/2026.
 //
 //  Uses Apple Foundation Models (iOS 18.1+, Apple Intelligence devices) to extract
-//  structured receipt data from raw OCR text.  Falls back to ReceiptParser on
-//  devices that don't support the on-device LLM (e.g. iPhone 12).
+//  structured receipt data from raw OCR text.
+//
+//  For devices without Apple Intelligence the caller saves the receipt as `.pending`
+//  and defers extraction to a future API.
 //
 
 import Foundation
 import FoundationModels
 
-// MARK: - Structured output type
+// MARK: - Structured output types
 
-/// The three core fields we extract from a receipt.
-/// Decorated with @Generable so the on-device LLM returns a typed Swift value
-/// rather than free-form text.
+/// A single line item extracted from a receipt.
+@available(iOS 18.1, *)
+@Generable
+struct ExtractedItem {
+    @Guide(description: """
+        The product name as printed on the receipt.
+        Clean up obvious OCR noise but keep the original wording.
+        Examples: "Milk 1L", "Bread White 600g", "Coca Cola 500ml".
+        """)
+    var name: String
+
+    @Guide(description: """
+        Quantity purchased for this line item.
+        Usually shown as a number before or after the product name, or on a separate line.
+        Default to 1 if not explicitly shown.
+        """)
+    var quantity: Int
+
+    @Guide(description: """
+        Price per single unit of the product.
+        Often labeled "Unit Price" or shown in a second column.
+        Return 0 if not shown.
+        """)
+    var unitPrice: Double
+
+    @Guide(description: """
+        Total price for this line item (quantity × unit price).
+        This is the rightmost price column.
+        Strip commas and spaces (e.g. "1,500.00" → 1500.0).
+        """)
+    var totalPrice: Double
+}
+
+/// All structured data we extract from a receipt in a single LLM call.
 @available(iOS 18.1, *)
 @Generable
 struct ExtractedReceiptData {
@@ -53,45 +86,65 @@ struct ExtractedReceiptData {
         Default to "RWF" when no currency indicator is found (most receipts are Rwandan).
         """)
     var currency: String
+
+    /// All line items purchased on this receipt.
+    @Guide(description: """
+        Every product line item on the receipt.
+        Important: OCR from POS receipts often reads the entire left column (item names) then
+        the entire right column (prices), so names and prices may be many lines apart.
+        Pair them intelligently based on position and context.
+        Exclude header, subtotal, tax, and footer lines.
+        Return an empty array if no items can be reliably identified.
+        """)
+    var items: [ExtractedItem]
 }
 
 // MARK: - Service
 
 /// Wrapper around `LanguageModelSession` for receipt data extraction.
+/// Only available on iOS 18.1+ devices with Apple Intelligence enabled.
 @available(iOS 18.1, *)
 enum FoundationModelService {
 
+    // MARK: - Availability check
+
+    /// Returns whether the on-device model is ready to use.
+    static var isAvailable: Bool {
+        SystemLanguageModel.default.isAvailable
+    }
+
     // MARK: - Public API
 
-    /// Tries to extract store name, total, and currency from raw OCR text using the
-    /// on-device Apple Foundation Model.
+    /// Extracts all receipt fields from raw OCR text using the on-device language model.
     ///
-    /// - Returns: `ExtractedReceiptData` on success, `nil` if the model is unavailable
-    ///   or if extraction throws (both are normal — the caller falls back to regex).
+    /// - Returns: `ExtractedReceiptData` on success, `nil` if unavailable or extraction fails.
     static func extractReceiptData(from rawText: String) async -> ExtractedReceiptData? {
         let model = SystemLanguageModel.default
+
         switch model.availability {
         case .available:
-            print("Show your intelligence UI.")
+            break   // proceed below
         case .unavailable(.deviceNotEligible):
-            print("Show an alternative UI.")
+            print("[Cashew] Foundation Models: device not eligible for Apple Intelligence.")
+            return nil
         case .unavailable(.appleIntelligenceNotEnabled):
-                    print("Ask the person to turn on Apple Intelligence.")
+            print("[Cashew] Foundation Models: Apple Intelligence not enabled by user.")
+            return nil
         case .unavailable(.modelNotReady):
-                            print("The model isn't ready because it's downloading or because of other system reasons.")
+            print("[Cashew] Foundation Models: model not ready (still downloading?).")
+            return nil
         case .unavailable(let other):
-            print("The model is unavailable for an unknown reason.")
-        }
-        guard SystemLanguageModel.default.isAvailable else {
-            print("[Cashew] Foundation Models: not available on this device.")
+            print("[Cashew] Foundation Models: unavailable — \(other).")
             return nil
         }
 
         let session = LanguageModelSession()
-        let prompt  = buildPrompt(for: rawText)
 
         do {
-            let result = try await session.respond(to: prompt, generating: ExtractedReceiptData.self)
+            let result = try await session.respond(
+                to: buildPrompt(for: rawText),
+                generating: ExtractedReceiptData.self
+            )
             return result.content
         } catch {
             print("[Cashew] Foundation Models extraction error: \(error)")
@@ -104,11 +157,12 @@ enum FoundationModelService {
     private static func buildPrompt(for rawText: String) -> String {
         """
         You are a receipt-data extractor. The text below is the raw output from an OCR scan \
-        of a supermarket receipt. Extract the three fields described in the response schema.
+        of a supermarket receipt. Extract all fields described in the response schema.
 
         Notes on this OCR output:
         • Numbers may have stray spaces near the decimal (e.g. "5,400. 00" means 5400.00).
         • Lines are separated by newlines; columns are not always aligned.
+        • POS receipts often put all item names first, then all prices — pair them by order.
         • The receipt may start with POS system header garbage before the actual store name.
         • Ignore lines like "TOTAL TAX", "TOTAL B-18%", "TOTAL A-EX" — those are subtotals.
         • Most receipts are Rwandan; default to RWF if no currency code is found.
