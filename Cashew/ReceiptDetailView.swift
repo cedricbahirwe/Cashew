@@ -33,7 +33,7 @@ struct ReceiptDetailView: View {
             // Dim the rest of the page while the image is expanded
             .overlay {
                 if showFullImage {
-                    Color.red.opacity(0.01)   // tiny opacity keeps it hittable for dismiss
+                    Color.red//opacity keeps it hittable for dismiss
 //                        .ignoresSafeArea()
                         .onTapGesture { collapseImage() }
                 }
@@ -46,13 +46,12 @@ struct ReceiptDetailView: View {
                     namespace: imageNamespace,
                     onDismiss: collapseImage
                 )
-//                .ignoresSafeArea()
                 .zIndex(1)
             }
         }
         .navigationTitle(receipt.isPending ? "Pending Receipt" : "Receipt")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarVisibility(showFullImage ? .hidden : .visible, for: .navigationBar)
+//        .toolbarVisibility(showFullImage ? .hidden : .visible, for: .navigationBar)
         .background(Color(.systemGroupedBackground))
     }
 
@@ -230,8 +229,6 @@ private struct FullImageViewer: View {
 
     var body: some View {
         ZStack {
-            Color.green//.ignoresSafeArea()
-
             Image(uiImage: image)
                 .resizable()
                 .scaledToFit()
@@ -250,11 +247,16 @@ private struct FullImageViewer: View {
                             .onChanged { value in
                                 let delta = value.magnification / lastScale
                                 lastScale = value.magnification
-                                scale = min(max(scale * delta, 1), 5)
+                                // Allow going below 1 so a pinch-out can trigger dismiss
+                                scale = min(scale * delta, 5)
                             }
                             .onEnded { _ in
                                 lastScale = 1.0
-                                if scale < 1 {
+                                if scale < 0.75 {
+                                    // Pinched out far enough — dismiss like Photos
+                                    onDismiss()
+                                } else if scale < 1 {
+                                    // Not far enough — spring back to 1
                                     withAnimation(.spring) { scale = 1; offset = .zero }
                                 }
                             },
@@ -296,6 +298,7 @@ private struct FullImageViewer: View {
                     }
                 }
         }
+        .frame(maxWidth: .infinity)
         .offset(y: dragOffset.height * 0.3)
         .overlay(alignment: .topTrailing) {
             // Close button
