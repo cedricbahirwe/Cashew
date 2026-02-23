@@ -1,0 +1,119 @@
+//
+//  ReceiptDetailView.swift
+//  Cashew
+//
+//  Created by Cédric Bahirwe on 22/02/2026.
+//
+
+import SwiftUI
+
+struct ReceiptDetailView: View {
+    let receipt: Receipt
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+
+                // Receipt image
+                if let data = receipt.imageData, let image = UIImage(data: data) {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFit()
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                        .shadow(color: .black.opacity(0.12), radius: 8, x: 0, y: 4)
+                        .frame(maxWidth: .infinity)
+                }
+
+                // Store header
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(receipt.storeName)
+                        .font(.title2)
+                        .fontWeight(.bold)
+
+                    HStack(spacing: 12) {
+                        Label(
+                            receipt.receiptDate.formatted(date: .long, time: .omitted),
+                            systemImage: "calendar"
+                        )
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+
+                        Label(
+                            receipt.scannedAt.formatted(date: .abbreviated, time: .shortened),
+                            systemImage: "clock"
+                        )
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                    }
+                }
+
+                // Line items
+                if !receipt.items.isEmpty {
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text("Items")
+                            .font(.headline)
+                            .padding(.bottom, 10)
+
+                        ForEach(receipt.items) { item in
+                            VStack(spacing: 0) {
+                                HStack(alignment: .top) {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(item.name)
+                                            .font(.subheadline)
+                                        if item.quantity > 1 {
+                                            Text("Qty: \(item.quantity)")
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                    }
+                                    Spacer()
+                                    Text(formatAmount(item.totalPrice))
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
+                                }
+                                .padding(.vertical, 10)
+
+                                Divider()
+                            }
+                        }
+                    }
+                    .padding()
+                    .background(Color(.secondarySystemBackground))
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                }
+
+                // Total card
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Total")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        Text("\(receipt.items.count) item\(receipt.items.count == 1 ? "" : "s")")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                    Spacer()
+                    Text(receipt.formattedTotal)
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .foregroundStyle(.green)
+                }
+                .padding()
+                .background(Color(.secondarySystemBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 14))
+            }
+            .padding()
+        }
+        .navigationTitle("Receipt")
+        .navigationBarTitleDisplayMode(.inline)
+        .background(Color(.systemGroupedBackground))
+    }
+
+    private func formatAmount(_ value: Double) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.groupingSeparator = ","
+        formatter.maximumFractionDigits = 0
+        return "\(receipt.currency) \(formatter.string(from: NSNumber(value: value)) ?? "\(Int(value))")"
+    }
+}
