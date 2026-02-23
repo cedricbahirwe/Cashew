@@ -14,19 +14,17 @@ struct ReceiptCard: View {
         HStack(spacing: 14) {
             receiptThumbnail
 
-            VStack(alignment: .leading, spacing: 4) {
+            // Store name gets the full row — no truncation competition
+            VStack(alignment: .leading, spacing: 5) {
                 if receipt.isPending {
-                    // Pending: no store name yet
-                    HStack(spacing: 6) {
+                    HStack(spacing: 5) {
                         Text("Pending")
-                            .font(.subheadline)
                             .fontWeight(.semibold)
                             .foregroundStyle(.orange)
-
                         Image(systemName: "clock.arrow.2.circlepath")
-                            .font(.caption)
                             .foregroundStyle(.orange)
                     }
+                    .font(.subheadline)
                 } else {
                     Text(receipt.storeName.isEmpty ? "Unknown Store" : receipt.storeName)
                         .font(.subheadline)
@@ -34,23 +32,23 @@ struct ReceiptCard: View {
                         .lineLimit(1)
                 }
 
-                Text(receipt.receiptDate, format: .dateTime.day().month(.wide).year())
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                // Date (left) + amount (right) share the secondary row
+                HStack {
+                    Text(receipt.receiptDate, format: .dateTime.day().month(.abbreviated).year())
+                        .foregroundStyle(.secondary)
 
-            }
+                    Spacer()
 
-            Spacer()
-
-            if receipt.isPending {
-                Text("–")
-                    .font(.subheadline)
-                    .foregroundStyle(.tertiary)
-            } else {
-                Text(receipt.formattedTotal)
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(Color.green)
+                    if receipt.isPending {
+                        Text("Processing…")
+                            .foregroundStyle(.orange.opacity(0.8))
+                    } else {
+                        Text(receipt.formattedTotal)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(.green)
+                    }
+                }
+                .font(.caption)
             }
         }
         .padding(.vertical, 6)
@@ -63,7 +61,7 @@ struct ReceiptCard: View {
                 .resizable()
                 .scaledToFill()
                 .frame(width: 52, height: 52)
-                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .clipShape(.rect(cornerRadius: 10))
                 .overlay(alignment: .bottomTrailing) {
                     if receipt.isPending {
                         Image(systemName: "clock.fill")
